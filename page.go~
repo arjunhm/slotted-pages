@@ -54,10 +54,6 @@ func (p *Page) GetFreeOffset() uint32 {
 	return getuint32(p.Data[4:8])
 }
 
-func (p *Page) SetFreeOffset(offset uint32) {
-	putuint32(p.Data[4:8], offset)
-}
-
 func (p *Page) GetRecordCount() uint32 {
 	return getuint32(p.Data[8:12])
 }
@@ -72,9 +68,12 @@ func (p *Page) UpdateSlot(slotOffset, dataOffset, dataLength uint32) {
 }
 
 func (p *Page) AddData(key string, val string) {
-
+	// get free ptr offset
 	offset := p.GetFreeOffset()
+
+	// get record count
 	count := p.GetRecordCount()
+
 	// get slot
 	slotOffset := HEADER_SIZE + (count * SLOT_SIZE)
 
@@ -89,7 +88,7 @@ func (p *Page) AddData(key string, val string) {
 	copy(p.Data[start+keyLength:offset], val)
 
 	// update free space pointer
-	p.SetFreeOffset(start)
+	putuint32(p.Data[4:8], uint32(start))
 
 	// add slot array
 	p.UpdateSlot(slotOffset, start, kvLength)
@@ -100,7 +99,7 @@ func (p *Page) AddData(key string, val string) {
 
 func (p *Page) DeleteData(slotIndex uint32) bool {
 	// get count
-	count := p.GetRecordCount()
+	count := getuint32(p.Data[8:12])
 
 	// check if slotIndex exists
 	if slotIndex > count {
