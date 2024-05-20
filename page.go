@@ -55,15 +55,15 @@ func (p *Page) AddData(key string, val string) {
 	start := offset - kvLength
 
 	// add data to end of page
-	copy(p.Data[start: start + keyLength], key)
-	copy(p.Data[start + keyLength: offset], val)
+	copy(p.Data[start:start+keyLength], key)
+	copy(p.Data[start+keyLength:offset], val)
 
 	// update free space pointer
 	putuint32(p.Data[4:8], uint32(start))
 
 	// add slot array
-	putuint32(p.Data[slotOffset: slotOffset+SLOT_POINTER_SIZE], uint32(start))
-	putuint32(p.Data[slotOffset+SLOT_POINTER_SIZE: slotOffset+SLOT_SIZE], uint32(kvLength))
+	putuint32(p.Data[slotOffset:slotOffset+SLOT_POINTER_SIZE], uint32(start))
+	putuint32(p.Data[slotOffset+SLOT_POINTER_SIZE:slotOffset+SLOT_SIZE], uint32(kvLength))
 
 	// increment count
 	putuint32(p.Data[8:12], count+1)
