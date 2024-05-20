@@ -6,7 +6,22 @@ import (
 )
 
 func main() {
-	fmt.Println("hello")
+	fmt.Println("slotted pages")
+
 	p := page.AllocPage(1)
-	fmt.Println(p.Data[4:8])
+	p.DisplayHeaderDetails()
+
+	p.AddData("aged", "12")
+	p.DisplayHeaderDetails()
+
+	p.AddData("abc", "10")
+	p.DisplayHeaderDetails()
+
+	p.AddData("def", "99")
+	p.DisplayHeaderDetails()
+
+	p.AddData("xyz", "xz")
+	p.DisplayHeaderDetails()
+
+	fmt.Println(p.Data[12:60])
 }
