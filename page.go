@@ -9,7 +9,8 @@ const (
 	PAGE_SIZE                = 4096 // 4KB
 	HEADER_SIZE       uint32 = 12   // 4 page ID, 4 offset, 4 record count
 	SLOT_POINTER_SIZE        = 4    // offset to where the data begins from
-	SLOT_LENGTH_SIZE         = 4    // never used, but idk
+	SLOT_KEY_SIZE            = 4    // never used, but idk
+	SLOT_VAL_SIZE            = 4
 	SLOT_SIZE                = SLOT_POINTER_SIZE + SLOT_LENGTH_SIZE
 )
 
@@ -66,9 +67,30 @@ func (p *Page) SetRecordCount(count uint32) {
 	putuint32(p.Data[8:12], count)
 }
 
-func (p *Page) UpdateSlot(slotOffset, dataOffset, dataLength uint32) {
-	putuint32(p.Data[slotOffset:slotOffset+SLOT_POINTER_SIZE], uint32(dataOffset))
-	putuint32(p.Data[slotOffset+SLOT_POINTER_SIZE:slotOffset+SLOT_SIZE], uint32(dataLength))
+func (p *Page) SetSlot(slotOffset, dataOffset, keyLength, valLength uint32) {
+
+	offsetStart, offsetEnd := slotOffset, slotOffset+SLOT_POINTER_SIZE
+	putuint32(p.Data[offsetStart:offsetEnd], uint32(keyLength))
+
+	keyEnd := offsetEnd + SLOT_KEY_SIZE
+	putuint32(p.Data[offsetEnd:keyEnd], uint32(keyLength))
+
+	valEnd := keyEnd + SLOT_VAL_SIZE
+	putuint32(p.Data[keyEnd:valEnd], uint32(valLength))
+}
+
+func (p *Page) GetSlot(slotOffset uint32) (uint32, uint32, uint32) {
+
+	offsetStart, offsetEnd := slotOffset, slotOffset+SLOT_POINTER_SIZE
+	dataOffset := getuint32(p.Data[offsetStart:offsetEnd])
+
+	keyEnd := offsetEnd + SLOT_KEY_SIZE
+	keyLength := getuint32(p.Data[offsetEnd:keyEnd])
+
+	valEnd := keyEnd + SLOT_VAL_SIZE
+	valLength := getuint32(p.Data[keyEnd:valEnd])
+
+	return dataOffset, keyLength, valLength
 }
 
 func (p *Page) AddData(key string, val string) {
@@ -90,10 +112,8 @@ func (p *Page) AddData(key string, val string) {
 
 	// update free space pointer
 	p.SetFreeOffset(start)
-
 	// add slot array
-	p.UpdateSlot(slotOffset, start, kvLength)
-
+	p.SetSlot(slotOffset, start, keyLength, valLength)
 	// increment count
 	p.SetRecordCount(count + 1)
 }
@@ -109,10 +129,8 @@ func (p *Page) DeleteData(slotIndex uint32) bool {
 
 	// get slot offset
 	slotOffset := HEADER_SIZE + (slotIndex * SLOT_SIZE)
-	// get pointer to data
-	offset := getuint32(p.Data[slotOffset : slotOffset+SLOT_POINTER_SIZE])
-	// get length of data
-	length := getuint32(p.Data[slotOffset+SLOT_POINTER_SIZE : slotOffset+SLOT_SIZE])
+	offset, keyLength, valLength := GetSlot(slotIndex)
+	length := keyLength + valLength
 
 	// set data to 0
 	for i := uint32(0); i < length; i++ {
@@ -120,7 +138,7 @@ func (p *Page) DeleteData(slotIndex uint32) bool {
 	}
 
 	// update slot
-	p.UpdateSlot(slotOffset, 0, 0)
+	p.SetSlot(slotOffset, 0, 0)
 
 	return true
 }
