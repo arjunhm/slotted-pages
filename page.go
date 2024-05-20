@@ -11,19 +11,22 @@ const (
 	SLOT_LENGTH_SIZE         = 4
 	SLOT_SIZE                = SLOT_POINTER_SIZE + SLOT_LENGTH_SIZE
 )
+// wrapper, easier to type
+
+func putuint32(buf []byte, val uint32) {
+	binary.LittleEndian.PutUint32(buf, val)
+}
+
+
+func getuint32(buf []byte) uint32 {
+	return binary.LittleEndian.Uint32(buf)
+}
+
 
 type Page struct {
 	Data []byte
 }
 
-// wrapper, easier to type
-func putuint32(buf []byte, val uint32) {
-	binary.LittleEndian.PutUint32(buf, val)
-}
-
-func getuint32(buf []byte) uint32 {
-	return binary.LittleEndian.Uint32(buf)
-}
 
 func AllocPage(pageID uint32) *Page {
 	page := Page{
@@ -37,6 +40,7 @@ func AllocPage(pageID uint32) *Page {
 
 	return &page
 }
+
 
 func (p *Page) AddData(key string, val string) {
 	// get free ptr offset
@@ -68,3 +72,4 @@ func (p *Page) AddData(key string, val string) {
 	// increment count
 	putuint32(p.Data[8:12], count+1)
 }
+
