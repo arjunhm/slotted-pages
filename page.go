@@ -11,7 +11,7 @@ const (
 	SLOT_POINTER_SIZE        = 4    // offset to where the data begins from
 	SLOT_KEY_SIZE            = 4    // never used, but idk
 	SLOT_VAL_SIZE            = 4
-	SLOT_SIZE                = SLOT_POINTER_SIZE + SLOT_LENGTH_SIZE
+	SLOT_SIZE                = SLOT_POINTER_SIZE + SLOT_KEY_SIZE + SLOT_VAL_SIZE
 )
 
 // wrapper, easier to type
@@ -129,7 +129,7 @@ func (p *Page) DeleteData(slotIndex uint32) bool {
 
 	// get slot offset
 	slotOffset := HEADER_SIZE + (slotIndex * SLOT_SIZE)
-	offset, keyLength, valLength := GetSlot(slotIndex)
+	offset, keyLength, valLength := p.GetSlot(slotIndex)
 	length := keyLength + valLength
 
 	// set data to 0
@@ -138,7 +138,7 @@ func (p *Page) DeleteData(slotIndex uint32) bool {
 	}
 
 	// update slot
-	p.SetSlot(slotOffset, 0, 0)
+	p.SetSlot(slotOffset, 0, 0, 0)
 
 	return true
 }
