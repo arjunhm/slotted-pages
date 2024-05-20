@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+// ! Handle case when there is
+//		1. not enough free space
+//		2. no free space
+
 const (
 	PAGE_SIZE                = 4096 // 4KB
 	HEADER_SIZE       uint32 = 12   // 4 page ID, 4 offset, 4 record count
