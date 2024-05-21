@@ -5,18 +5,18 @@ import (
 )
 
 type Slot struct {
-	Offset uint32
-	KeySize uint32
+	Offset    uint32
+	KeySize   uint32
 	ValueSize uint32
-	Deleted bool
+	Deleted   bool
 }
 
-func NewSlot(offset, keySize, valSize uint32) *Slot{
+func NewSlot(offset, keySize, valSize uint32) *Slot {
 	return &Slot{
-		Offset: offset,
-		KeySize: keySize,
+		Offset:    offset,
+		KeySize:   keySize,
 		ValueSize: valSize,
-		Deleted: false
+		Deleted:   false,
 	}
 }
 
@@ -51,7 +51,6 @@ func (s *Slot) GetSize() uint32 {
 	return s.GetKeySize() + s.GetValueSize()
 }
 
-
 func (s *Slot) GetDeleted() bool {
 	return s.Deleted
 }
@@ -63,6 +62,6 @@ func (s *Slot) SetDeleted(del bool) {
 func (s *Slot) SetSlot(offset, keySize, valSize uint32, del bool) {
 	s.SetOffset(offset)
 	s.SetKeySize(keySize)
-	s.SetValueSize(valSize)i
+	s.SetValueSize(valSize)
 	s.SetDeleted(del)
 }

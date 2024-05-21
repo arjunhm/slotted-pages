@@ -1,151 +1,88 @@
 package page
 
-import (
-	"encoding/binary"
-	"fmt"
-)
-
-// ! Handle case when there is
-//		1. not enough free space
-//		2. no free space
+import "errors"
 
 const (
-	PAGE_SIZE                = 4096 // 4KB
-	HEADER_SIZE       uint32 = 12   // 4 page ID, 4 offset, 4 record count
-	SLOT_POINTER_SIZE        = 4    // offset to where the data begins from
-	SLOT_KEY_SIZE            = 4    // never used, but idk
-	SLOT_VAL_SIZE            = 4
-	SLOT_SIZE                = SLOT_POINTER_SIZE + SLOT_KEY_SIZE + SLOT_VAL_SIZE
+	PAGE_SIZE   = 4096 // 4KB
+	HEADER_SIZE = 12   // PageID+Count+FreeSpaceEnd
+	SLOT_SIZE   = 12   // Offset+KeySize+ValueSize
 )
 
-// wrapper, easier to type
-func putuint32(buf []byte, val uint32) {
-	binary.LittleEndian.PutUint32(buf, val)
-}
-
-func getuint32(buf []byte) uint32 {
-	return binary.LittleEndian.Uint32(buf)
-}
-
 type Page struct {
-	Data []byte
+	Header Header
+	Slots  []Slot
+	Data   []byte
 }
 
-func (p *Page) DisplayHeaderDetails() {
-	fmt.Printf("PageID: %d\n", p.GetPageID())
-	fmt.Printf("Offset: %d\n", p.GetFreeOffset())
-	fmt.Printf("Count: %d\n", p.GetRecordCount())
-	fmt.Print("-----\n")
-}
-
-func AllocPage(pageID uint32) *Page {
-	page := Page{
-		Data: make([]byte, PAGE_SIZE),
+func NewPage(pageID uint32) *Page {
+	h := NewHeader(pageID)
+	return &Page{
+		Header: h,
+		Slots:  make([]Slot, 0),
+		Data:   make([]byte, PAGE_SIZE-HEADER_SIZE),
 	}
-
-	// Add header data
-	putuint32(page.Data[0:4], pageID)
-	putuint32(page.Data[4:8], uint32(PAGE_SIZE))
-	putuint32(page.Data[8:12], uint32(0))
-
-	return &page
 }
 
-func (p *Page) GetPageID() uint32 {
-	return getuint32(p.Data[0:4])
+func GetSlotOffset(count uint32) uint32 {
+	return HEADER_SIZE + (count * SLOT_SIZE)
 }
 
-func (p *Page) GetFreeOffset() uint32 {
-	return getuint32(p.Data[4:8])
-}
+func (p *Page) AddRow(kv KeyValue) error {
 
-func (p *Page) SetFreeOffset(offset uint32) {
-	putuint32(p.Data[4:8], offset)
-}
+	offset := p.Header.GetFreeSpaceEnd()
 
-func (p *Page) GetRecordCount() uint32 {
-	return getuint32(p.Data[8:12])
-}
+	dataSize := kv.GetSize()
+	keySize := kv.GetKeySize()
+	valSize := kv.GetValueSize()
 
-func (p *Page) SetRecordCount(count uint32) {
-	putuint32(p.Data[8:12], count)
-}
+	start := offset - dataSize
+	keyEnd := start + keySize
+	copy(p.Data[start:keyEnd], kv.Key)
+	copy(p.Data[keyEnd:keyEnd+valSize], kv.Value)
 
-func (p *Page) SetSlot(slotOffset, dataOffset, keyLength, valLength uint32) {
+	// create slot and add to slot array
+	slot := NewSlot(offset, keySize, valSize)
+	p.Slots = append(p.Slots, slot)
 
-	offsetStart, offsetEnd := slotOffset, slotOffset+SLOT_POINTER_SIZE
-	putuint32(p.Data[offsetStart:offsetEnd], uint32(keyLength))
+	// update free space ptr
+	p.Header.SetFreeSpaceEnd(start)
 
-	keyEnd := offsetEnd + SLOT_KEY_SIZE
-	putuint32(p.Data[offsetEnd:keyEnd], uint32(keyLength))
-
-	valEnd := keyEnd + SLOT_VAL_SIZE
-	putuint32(p.Data[keyEnd:valEnd], uint32(valLength))
-}
-
-func (p *Page) GetSlot(slotOffset uint32) (uint32, uint32, uint32) {
-
-	offsetStart, offsetEnd := slotOffset, slotOffset+SLOT_POINTER_SIZE
-	dataOffset := getuint32(p.Data[offsetStart:offsetEnd])
-
-	keyEnd := offsetEnd + SLOT_KEY_SIZE
-	keyLength := getuint32(p.Data[offsetEnd:keyEnd])
-
-	valEnd := keyEnd + SLOT_VAL_SIZE
-	valLength := getuint32(p.Data[keyEnd:valEnd])
-
-	return dataOffset, keyLength, valLength
-}
-
-func (p *Page) AddData(key string, val string) {
-
-	offset := p.GetFreeOffset()
-	count := p.GetRecordCount()
-	// get slot
-	slotOffset := HEADER_SIZE + (count * SLOT_SIZE)
-
-	// calculate length of data
-	keyLength := uint32(len(key))
-	valLength := uint32(len(val))
-	kvLength := keyLength + valLength
-	start := offset - kvLength
-
-	// add data to end of page
-	copy(p.Data[start:start+keyLength], key)
-	copy(p.Data[start+keyLength:offset], val)
-
-	// update free space pointer
-	p.SetFreeOffset(start)
-	// add slot array
-	p.SetSlot(slotOffset, start, keyLength, valLength)
 	// increment count
-	p.SetRecordCount(count + 1)
+	p.Header.SetCount(p.Header.GetCount() + 1)
+
+	return nil
 }
 
-func (p *Page) DeleteData(slotIndex uint32) bool {
-	// get count
-	count := p.GetRecordCount()
+func (p *Page) UpdateRow(kv KeyValue) error {
+	/*
+		have to look into this
+		basically, you create a new tuple and
+		add it to the page, mark the old one as deleted
+	*/
+	return nil
+}
 
-	// check if slotIndex exists
+func (p *Page) DeleteRow(slotIndex uint32) error {
+
+	count := p.Header.GetCount()
+
 	if slotIndex > count {
-		return false
+		return errors.New("Invalid slot index")
 	}
 
-	// get slot offset
-	slotOffset := HEADER_SIZE + (slotIndex * SLOT_SIZE)
-	offset, keyLength, valLength := p.GetSlot(slotIndex)
-	length := keyLength + valLength
+	slotOffset := GetSlotOffset(count)
+	slot := p.Slots[slotOffset]
 
-	// set data to 0
-	for i := uint32(0); i < length; i++ {
+	offset := slot.GetOffset()
+	dataSize := slot.GetSize()
+
+	for i := uint32(0); i < dataSize; i++ {
 		p.Data[offset+i] = 0
 	}
 
-	// update slot
-	p.SetSlot(slotOffset, 0, 0, 0)
+	// use this as the main thing later.
+	// batch delete later
+	p.Slots[slotIndex].SetSlot(0, 0, 0, true)
 
-	return true
+	return nil
 }
-
-// ! AAAHHH do this pls
-func (p *Page) Vacuum() {}
