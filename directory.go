@@ -1,7 +1,6 @@
 package page
 
 import (
-	"encoding/binary"
 	"errors"
 )
 
@@ -36,7 +35,7 @@ type Entry struct {
 func NewDirectory() *Directory {
 	return &Directory{
 		Count: 0,
-		Data:  make([]Entry, DIR_ENTRY_SIZE),
+		Entry: make([]Entry, DIR_ENTRY_SIZE),
 	}
 }
 
@@ -55,10 +54,11 @@ func (d *Directory) GetCount() uint32 {
 
 func (d *Directory) CreateEntry(pageID, offset, freeSpace uint32) error {
 
-	entry, err := NewEntry(pageID, offset, freeSpace)
+	entryPtr, err := NewEntry(pageID, offset, freeSpace)
 	if err != nil {
 		return err
 	}
+	entry := *entryPtr
 
 	d.Entry = append(d.Entry, entry)
 	d.UpdateCount()
@@ -66,13 +66,13 @@ func (d *Directory) CreateEntry(pageID, offset, freeSpace uint32) error {
 	return nil
 }
 
-func (d *Directory) ReadEntry(pageID uint32) (Entry, error) {
+func (d *Directory) ReadEntry(pageID uint32) (*Entry, error) {
 
 	if pageID >= d.GetCount() {
 		return nil, errors.New("pageID does not exist")
 	}
 
-	return d.Entry[pageID], nil
+	return &d.Entry[pageID], nil
 }
 
 func (d *Directory) UpdateEntry(pageID, offset, freeSpace uint32) error {
@@ -81,7 +81,7 @@ func (d *Directory) UpdateEntry(pageID, offset, freeSpace uint32) error {
 		return errors.New("pageID does not exist")
 	}
 	d.Entry[pageID].Offset = offset
-	d.Entry[pageID].freeSpace = freeSpace
+	d.Entry[pageID].FreeSpace = freeSpace
 
 	return nil
 }
@@ -94,14 +94,14 @@ func (d *Directory) DeleteEntry() {}
 func NewEntry(pageID, offset, freeSpace uint32) (*Entry, error) {
 
 	if pageID >= DIR_ENTRY_LIMIT {
-		return errors.New("Entry limit exceeded")
+		return nil, errors.New("Entry limit exceeded")
 	}
 
 	return &Entry{
 		PageID:    pageID,
 		Offset:    offset,
 		FreeSpace: freeSpace,
-	}
+	}, nil
 }
 
 func (e *Entry) Decode() (uint32, uint32, uint32) {

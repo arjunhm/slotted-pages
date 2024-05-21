@@ -17,7 +17,7 @@ type Page struct {
 func NewPage(pageID uint32) *Page {
 	h := NewHeader(pageID)
 	return &Page{
-		Header: h,
+		Header: *h,
 		Slots:  make([]Slot, 0),
 		Data:   make([]byte, PAGE_SIZE-HEADER_SIZE),
 	}

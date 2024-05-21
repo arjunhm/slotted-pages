@@ -13,11 +13,11 @@ func NewKeyValue(key string, val string) *KeyValue {
 }
 
 func (kv *KeyValue) GetKeySize() uint32 {
-	return len(kv.Key)
+	return uint32(len(kv.Key))
 }
 
 func (kv *KeyValue) GetValueSize() uint32 {
-	return len(kv.Value)
+	return uint32(len(kv.Value))
 }
 
 func (kv *KeyValue) GetSize() uint32 {

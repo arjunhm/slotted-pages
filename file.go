@@ -19,8 +19,8 @@ func NewFile(fileName string) (*File, error) {
 
 	return &File{
 		OSFile:    file,
-		Directory: NewDirectory,
-		Pages:     make([]Pages, DIR_ENTRY_LIMIT),
+		Directory: *NewDirectory(),
+		Pages:     make([]Page, DIR_ENTRY_LIMIT),
 	}, nil
 
 }

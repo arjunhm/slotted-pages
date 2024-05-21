@@ -11,8 +11,8 @@ type Slot struct {
 	Deleted   bool
 }
 
-func NewSlot(offset, keySize, valSize uint32) *Slot {
-	return &Slot{
+func NewSlot(offset, keySize, valSize uint32) Slot {
+	return Slot{
 		Offset:    offset,
 		KeySize:   keySize,
 		ValueSize: valSize,
@@ -21,7 +21,7 @@ func NewSlot(offset, keySize, valSize uint32) *Slot {
 }
 
 func (s *Slot) GetOffset() uint32 {
-	return Slot.Offset
+	return s.Offset
 }
 
 func (s *Slot) SetOffset(offset uint32) error {
@@ -29,6 +29,7 @@ func (s *Slot) SetOffset(offset uint32) error {
 		return errors.New("Invalid offset")
 	}
 	s.Offset = offset
+	return nil
 }
 
 func (s *Slot) GetKeySize() uint32 {

@@ -26,10 +26,11 @@ func (h *Header) SetCount(c uint32) {
 	h.Count = c
 }
 
-func (h *Header) GetFreeSpace() uint32 {
+func (h *Header) GetFreeSpaceEnd() uint32 {
 	return h.FreeSpaceEnd
 }
 
 func (h *Header) SetFreeSpaceEnd(freeSpaceEnd uint32) {
 	h.FreeSpaceEnd = freeSpaceEnd
 }
+
