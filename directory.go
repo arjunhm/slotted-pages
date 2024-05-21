@@ -76,13 +76,13 @@ func (d *Directory) ReadEntry(pageID uint32) (Entry, error) {
 }
 
 func (d *Directory) UpdateEntry(pageID, offset, freeSpace uint32) error {
-	
+
 	if pageID >= d.GetCount() {
 		return errors.New("pageID does not exist")
 	}
 	d.Entry[pageID].Offset = offset
 	d.Entry[pageID].freeSpace = freeSpace
-	
+
 	return nil
 }
 

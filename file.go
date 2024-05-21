@@ -10,11 +10,17 @@ type File struct {
 	Pages     []Page
 }
 
-func NewFile(fileName string) *File {
+func NewFile(fileName string) (*File, error) {
 
-	// create file in disk
-	// store file in File.OSFile
-	// create directory NewDirectory()
-	// create pages
+	file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+
+	return &File{
+		OSFile:    file,
+		Directory: NewDirectory,
+		Pages:     make([]Pages, DIR_ENTRY_LIMIT),
+	}, nil
 
 }
