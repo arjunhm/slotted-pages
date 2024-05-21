@@ -2,6 +2,7 @@ package page
 
 import (
 	"encoding/binary"
+	"errors"
 )
 
 /*
@@ -11,60 +12,98 @@ Directory contains
 */
 
 const (
-	DIR_PAGE_ID_SIZE    = 4
-	DIR_FREE_SPACE_SIZE = 4
-	DIR_SLOT_SIZE       = DIR_PAGE_ID_SIZE + DIR_FREE_SPACE_SIZE
+	DIR_COUNT_SIZE   = 4                                                  // # of entries
+	DIR_PAGE_ID_SIZE = 4                                                  // bytes for pageID
+	DIR_OFFSET_SIZE  = 4                                                  // bytes for offset
+	DIR_FREE_SIZE    = 4                                                  // bytes for free space
+	DIR_SLOT_SIZE    = DIR_PAGE_ID_SIZE + DIR_OFFSET_SIZE + DIR_FREE_SIZE // 12
+	DIR_ENTRY_LIMIT  = 10                                                 // can store 10 entries
+	DIR_ENTRY_SIZE   = DIR_SLOT_SIZE * DIR_ENTRY_LIMIT                    // 10 * 12 bytes
+
 )
 
 type Directory struct {
-	Data []byte
+	Count uint32
+	Entry []Entry
+}
+
+type Entry struct {
+	PageID    uint32
+	Offset    uint32
+	FreeSpace uint32
 }
 
 func NewDirectory() *Directory {
-	d := &Directory{
-		Data: make([]byte, PAGE_SIZE),
+	return &Directory{
+		Count: 0,
+		Data:  make([]Entry, DIR_ENTRY_SIZE),
 	}
+}
+
+func (d *Directory) UpdateCount() {
+	d.Count = uint32(len(d.Entry))
+}
+
+// might get rid of this
+func (d *Directory) SetCount(count uint32) {
+	d.Count = count
 }
 
 func (d *Directory) GetCount() uint32 {
-	return getuint32(d.Data[0:HEADER_SIZE])
+	return d.Count
 }
 
-func (d *Directory) SetCount(count uint32) {
-	putuint32(d.Data[0:HEADER_SIZE], count)
-}
+func (d *Directory) CreateEntry(pageID, offset, freeSpace uint32) error {
 
-func (d *Directory) SetSlot(slotOffset, pageID, freeSpace uint32) {
-	pageIDEnd := slotOffset + DIR_PAGE_ID_SIZE
-	putuint32(d.Data[slotOffset:pageIDEnd], pageID)
-	putuint32(d.Data[pageEnd:DIR_SLOT_SIZE], freeSpace)
-}
-
-func (d *Directory) GetSlot(slotOffset) (uint32, uint32) {
-	pageIDEnd := slotOffset + DIR_PAGE_ID_SIZE
-	pageID := getuint32(d.Data[slotOffset:pageIDEnd])
-	freeSpace := getuint32(d.Data[pageEnd:DIR_SLOT_SIZE])
-	return pageID, freeSpace
-}
-
-func (d *Directory) AddData(pageID, freeSpace uint32) {
-
-	count := d.GetCount()
-	offset := HEADER_SIZE + (count * DIR_SLOT_SIZE)
-
-	d.SetSlot(offset, pageID, freeSpace)
-	d.SetCount(count + 1)
-}
-
-func (d *Directory) UpdateData(pageID, freeSpace uint32) {
-
-	count := d.GetCount()
-	if pageID > count {
-		return
+	entry, err := NewEntry(pageID, offset, freeSpace)
+	if err != nil {
+		return err
 	}
 
-	offset := HEADER_SIZE + ((pageID - 1) * DIR_SLOT_SIZE)
-	d.SetSlot(offset, pageID, freeSpace)
+	d.Entry = append(d.Entry, entry)
+	d.UpdateCount()
+
+	return nil
 }
 
-func (d *Directory) RemoveData(pageID uint32) {}
+func (d *Directory) ReadEntry(pageID uint32) (Entry, error) {
+
+	if pageID >= d.GetCount() {
+		return nil, errors.New("pageID does not exist")
+	}
+
+	return d.Entry[pageID], nil
+}
+
+func (d *Directory) UpdateEntry(pageID, offset, freeSpace uint32) error {
+	
+	if pageID >= d.GetCount() {
+		return errors.New("pageID does not exist")
+	}
+	d.Entry[pageID].Offset = offset
+	d.Entry[pageID].freeSpace = freeSpace
+	
+	return nil
+}
+
+// idk about this one for now
+func (d *Directory) DeleteEntry() {}
+
+// ------ ENTRY ------
+
+func NewEntry(pageID, offset, freeSpace uint32) (*Entry, error) {
+
+	if pageID >= DIR_ENTRY_LIMIT {
+		return errors.New("Entry limit exceeded")
+	}
+
+	return &Entry{
+		PageID:    pageID,
+		Offset:    offset,
+		FreeSpace: freeSpace,
+	}
+}
+
+func (e *Entry) Decode() (uint32, uint32, uint32) {
+	return e.PageID, e.Offset, e.FreeSpace
+}
