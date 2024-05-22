@@ -33,4 +33,3 @@ func (h *Header) GetFreeSpaceEnd() uint32 {
 func (h *Header) SetFreeSpaceEnd(freeSpaceEnd uint32) {
 	h.FreeSpaceEnd = freeSpaceEnd
 }
-
