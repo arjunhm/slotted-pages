@@ -30,8 +30,7 @@ func (p *Page) GetFreeSpaceStart() uint32 {
 }
 
 func (p *Page) GetAvailableSpace() uint32 {
-	freeSpaceStart := p.GetFreeSpaceStart()
-	return p.Header.GetFreeSpaceEnd() - freeSpaceStart
+	return p.Header.GetFreeSpaceEnd() - p.GetFreeSpaceStart()
 }
 
 func (p *Page) GetSlot(slotID uint32) *Slot {
@@ -44,7 +43,6 @@ func (p *Page) GetSlot(slotID uint32) *Slot {
 			return &p.Slots[i]
 		}
 	}
-
 	return nil
 }
 
@@ -74,15 +72,19 @@ func (p *Page) Insert(kv KeyValue) error {
 	slot := NewSlot(slotID, start, keySize, valSize)
 	p.Slots = append(p.Slots, slot)
 
-	// Update Header: count, freeSpaceEnd, slotID
+	// update Header: count, freeSpaceEnd, slotID
 	p.Header.SetHeader(p.Header.GetCount()+1, start, slotID)
 
 	return nil
 }
 
 func (p *Page) Update(slotID uint32, kv KeyValue) error {
-	
+
 	slot := p.GetSlot(slotID)
+	if slot == nil {
+		return errors.New("Invalid Slot ID")
+	}
+
 	oldSize := slot.GetSize()
 	newSize := kv.GetSize()
 
@@ -93,18 +95,18 @@ func (p *Page) Update(slotID uint32, kv KeyValue) error {
 		valEnd := keyEnd + slot.GetValueSize()
 
 		// insert data
-		copy(p.Data[offset: keyEnd], kv.Key)
-		copy(p.Data[keyEnd: valEnd], kv.Value)
-		
+		copy(p.Data[offset:keyEnd], kv.Key)
+		copy(p.Data[keyEnd:valEnd], kv.Value)
+
 		// update key and val size in slot
 		keySize := kv.GetKeySize()
 		valSize := kv.GetValueSize()
 		slot.SetSlot(offset, keySize, valSize)
-	} else { 
+	} else {
 		/*
-		at this point, we have to delete the existing slot
-		so might as well check if freeSpace + slot size is enough
-		not the most efficient way obv
+			at this point, we have to delete the existing slot
+			so might as well check if freeSpace + slot size is enough
+			not the most efficient way obv
 		*/
 
 		availableSpace := p.GetAvailableSpace() + oldSize
@@ -139,8 +141,8 @@ func (p *Page) Delete(slotID uint32) error {
 
 	// get payload size
 	payloadSize := slot.GetSize()
-    freeSpaceEnd := p.Header.GetFreeSpaceEnd()
-	
+	freeSpaceEnd := p.Header.GetFreeSpaceEnd()
+
 	// if not last slot
 	if freeSpaceEnd != slot.GetOffset() {
 		// move data
@@ -153,9 +155,9 @@ func (p *Page) Delete(slotID uint32) error {
 	// update freeSpaceEnd
 	p.Header.SetFreeSpaceEnd(freeSpaceEnd + payloadSize)
 
-	// update slots
+	// update slots with new offset
 	var slotIndex int
-	for i:=0; i < len(p.Slots); i++ {
+	for i := 0; i < len(p.Slots); i++ {
 		s := p.Slots[i]
 		if s.GetOffset() < payloadOffset {
 			s.SetOffset(s.GetOffset() + payloadSize)
@@ -166,7 +168,7 @@ func (p *Page) Delete(slotID uint32) error {
 		}
 	}
 
-    // delete slot
+	// delete slot
 	p.Slots = append(p.Slots[:slotIndex], p.Slots[slotIndex+1:]...)
 
 	// update count
