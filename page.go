@@ -103,15 +103,8 @@ func (p *Page) Update(slotID uint32, kv KeyValue) error {
 		valSize := kv.GetValueSize()
 		slot.SetSlot(offset, keySize, valSize)
 	} else {
-		/*
-			at this point, we have to delete the existing slot
-			so might as well check if freeSpace + slot size is enough
-			not the most efficient way obv
-		*/
-
-		availableSpace := p.GetAvailableSpace() + oldSize
-		// if freeSpace + slotSize is enough
-		if newSize < availableSpace {
+		// if freeSpace enough
+		if newSize < p.GetAvailableSpace(){
 			// delete slot
 			err := p.Delete(slotID)
 			if err != nil {
@@ -175,3 +168,4 @@ func (p *Page) Delete(slotID uint32) error {
 	p.Header.SetCount(p.Header.GetCount() - 1)
 	return nil
 }
+
