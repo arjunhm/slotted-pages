@@ -11,13 +11,13 @@ Directory contains
 */
 
 const (
-	DIR_COUNT_SIZE   = 4                                                  // # of entries
-	DIR_PAGE_ID_SIZE = 4                                                  // bytes for pageID
-	DIR_OFFSET_SIZE  = 4                                                  // bytes for offset
-	DIR_FREE_SIZE    = 4                                                  // bytes for free space
-	DIR_SLOT_SIZE    = DIR_PAGE_ID_SIZE + DIR_OFFSET_SIZE + DIR_FREE_SIZE // 12
-	DIR_ENTRY_LIMIT  = 10                                                 // can store 10 entries
-	DIR_ENTRY_SIZE   = DIR_SLOT_SIZE * DIR_ENTRY_LIMIT                    // 10 * 12 bytes
+	DIR_COUNT_SIZE  = 4                                               // # of entries
+	DIR_ID_SIZE     = 4                                               // bytes for pageID
+	DIR_OFFSET_SIZE = 4                                               // bytes for offset
+	DIR_FREE_SIZE   = 4                                               // bytes for free space
+	DIR_SLOT_SIZE   = (DIR_ID_SIZE + DIR_OFFSET_SIZE + DIR_FREE_SIZE) // 12
+	DIR_ENTRY_LIMIT = 10                                              // can store 10 entries
+	DIR_ENTRY_SIZE  = DIR_SLOT_SIZE * DIR_ENTRY_LIMIT                 // 10 * 12 bytes
 
 )
 

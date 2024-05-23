@@ -30,14 +30,8 @@ func NewFile(fileName string) (*File, error) {
 func (f *File) ReadFile() error {
 
 	var buffer bytes.Buffer
-
-	fileStats, err := f.OSFile.Stat()
-	if err != nil {
-		return err
-	}
-
 	// fileSize := fileStats.Size()
-	_, err = f.OSFile.Read(buffer.Bytes())
+	_, err := f.OSFile.Read(buffer.Bytes())
 	if err != nil {
 		return err
 	}

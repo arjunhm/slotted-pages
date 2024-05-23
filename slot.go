@@ -4,20 +4,26 @@ import (
 	"errors"
 )
 
+const SLOT_SIZE = 16 // <SlotID,Offset,KeySize,ValueSize>
+
 type Slot struct {
+	SlotID    uint32
 	Offset    uint32
 	KeySize   uint32
 	ValueSize uint32
-	Deleted   bool
 }
 
-func NewSlot(offset, keySize, valSize uint32) Slot {
+func NewSlot(slotID, offset, keySize, valSize uint32) Slot {
 	return Slot{
+		SlotID:    slotID,
 		Offset:    offset,
 		KeySize:   keySize,
 		ValueSize: valSize,
-		Deleted:   false,
 	}
+}
+
+func (s *Slot) GetSlotID() uint32 {
+	return s.SlotID
 }
 
 func (s *Slot) GetOffset() uint32 {
@@ -52,17 +58,8 @@ func (s *Slot) GetSize() uint32 {
 	return s.GetKeySize() + s.GetValueSize()
 }
 
-func (s *Slot) GetDeleted() bool {
-	return s.Deleted
-}
-
-func (s *Slot) SetDeleted(del bool) {
-	s.Deleted = del
-}
-
-func (s *Slot) SetSlot(offset, keySize, valSize uint32, del bool) {
+func (s *Slot) SetSlot(offset, keySize, valSize uint32) {
 	s.SetOffset(offset)
 	s.SetKeySize(keySize)
 	s.SetValueSize(valSize)
-	s.SetDeleted(del)
 }

@@ -3,9 +3,7 @@ package page
 import "errors"
 
 const (
-	PAGE_SIZE   = 4096 // 4KB
-	HEADER_SIZE = 12   // PageID+Count+FreeSpaceEnd
-	SLOT_SIZE   = 12   // Offset+KeySize+ValueSize
+	PAGE_SIZE = 4096 // 4KB
 )
 
 type Page struct {
@@ -23,66 +21,155 @@ func NewPage(pageID uint32) *Page {
 	}
 }
 
-func GetSlotOffset(count uint32) uint32 {
-	return HEADER_SIZE + (count * SLOT_SIZE)
+// ----- Helper functions -----
+
+func (p *Page) GetFreeSpaceStart() uint32 {
+	count := p.Header.GetCount()
+	lastSlotOffset := HEADER_SIZE + (count * SLOT_SIZE)
+	return lastSlotOffset + SLOT_SIZE
 }
 
-func (p *Page) AddRow(kv KeyValue) error {
+func (p *Page) GetAvailableSpace() uint32 {
+	freeSpaceStart := p.GetFreeSpaceStart()
+	return p.Header.GetFreeSpaceEnd() - freeSpaceStart
+}
 
-	offset := p.Header.GetFreeSpaceEnd()
+func (p *Page) GetSlot(slotID uint32) *Slot {
+	// slotCount := p.Header.GetCount()
 
-	dataSize := kv.GetSize()
+	// naive search for now cause why not
+	// pls make it binary search later 😭
+	for i := 0; i < len(p.Slots); i++ {
+		if p.Slots[i].SlotID == slotID {
+			return &p.Slots[i]
+		}
+	}
+
+	return nil
+}
+
+// ----- Main functions -----
+
+func (p *Page) Insert(kv KeyValue) error {
+	// ? what if key already exists ?
+
+	payloadSize := kv.GetSize()
 	keySize := kv.GetKeySize()
 	valSize := kv.GetValueSize()
 
-	start := offset - dataSize
-	keyEnd := start + keySize
-	copy(p.Data[start:keyEnd], kv.Key)
-	copy(p.Data[keyEnd:keyEnd+valSize], kv.Value)
+	// check if space exists
+	if payloadSize > p.GetAvailableSpace() {
+		return errors.New("Insufficient space")
+	}
 
-	// create slot and add to slot array
-	slot := NewSlot(offset, keySize, valSize)
+	// get offset from where data can be inserted
+	start := p.Header.GetFreeSpaceEnd() - payloadSize
+
+	// add data
+	copy(p.Data[start:start+keySize], kv.Key)
+	copy(p.Data[start+keySize:start+payloadSize], kv.Value)
+
+	// add slot
+	slotID := p.Header.GetSlotID() + uint32(1) // idk if the uint32 part is required
+	slot := NewSlot(slotID, start, keySize, valSize)
 	p.Slots = append(p.Slots, slot)
 
-	// update free space ptr
-	p.Header.SetFreeSpaceEnd(start)
-
-	// increment count
-	p.Header.SetCount(p.Header.GetCount() + 1)
+	// Update Header: count, freeSpaceEnd, slotID
+	p.Header.SetHeader(p.Header.GetCount()+1, start, slotID)
 
 	return nil
 }
 
-func (p *Page) UpdateRow(kv KeyValue) error {
-	/*
-		have to look into this
-		basically, you create a new tuple and
-		add it to the page, mark the old one as deleted
-	*/
+func (p *Page) Update(slotID uint32, kv KeyValue) error {
+	
+	slot := p.GetSlot(slotID)
+	oldSize := slot.GetSize()
+	newSize := kv.GetSize()
+
+	// if same size
+	if oldSize == newSize {
+		offset := slot.GetOffset()
+		keyEnd := offset + slot.GetKeySize()
+		valEnd := keyEnd + slot.GetValueSize()
+
+		// insert data
+		copy(p.Data[offset: keyEnd], kv.Key)
+		copy(p.Data[keyEnd: valEnd], kv.Value)
+		
+		// update key and val size in slot
+		keySize := kv.GetKeySize()
+		valSize := kv.GetValueSize()
+		slot.SetSlot(offset, keySize, valSize)
+	} else { 
+		/*
+		at this point, we have to delete the existing slot
+		so might as well check if freeSpace + slot size is enough
+		not the most efficient way obv
+		*/
+
+		availableSpace := p.GetAvailableSpace() + oldSize
+		// if freeSpace + slotSize is enough
+		if newSize < availableSpace {
+			// delete slot
+			err := p.Delete(slotID)
+			if err != nil {
+				return err
+			}
+			// insert data
+			err = p.Insert(kv)
+			if err != nil {
+				return err
+			}
+		} else {
+			return errors.New("Insufficient space")
+		}
+	}
+
 	return nil
 }
 
-func (p *Page) DeleteRow(slotIndex uint32) error {
+func (p *Page) Delete(slotID uint32) error {
 
-	count := p.Header.GetCount()
+	// get slot
+	slot := p.GetSlot(slotID)
+	if slot == nil {
+		return errors.New("Invalid Slot ID")
+	}
+	payloadOffset := slot.GetOffset()
 
-	if slotIndex > count {
-		return errors.New("Invalid slot index")
+	// get payload size
+	payloadSize := slot.GetSize()
+    freeSpaceEnd := p.Header.GetFreeSpaceEnd()
+	
+	// if not last slot
+	if freeSpaceEnd != slot.GetOffset() {
+		// move data
+		src := freeSpaceEnd
+		dest := src + payloadSize
+		nBytes := src + payloadOffset
+		copy(p.Data[dest:dest+nBytes], p.Data[src:src+nBytes])
 	}
 
-	slotOffset := GetSlotOffset(count)
-	slot := p.Slots[slotOffset]
+	// update freeSpaceEnd
+	p.Header.SetFreeSpaceEnd(freeSpaceEnd + payloadSize)
 
-	offset := slot.GetOffset()
-	dataSize := slot.GetSize()
+	// update slots
+	var slotIndex int
+	for i:=0; i < len(p.Slots); i++ {
+		s := p.Slots[i]
+		if s.GetOffset() < payloadOffset {
+			s.SetOffset(s.GetOffset() + payloadSize)
+		}
 
-	for i := uint32(0); i < dataSize; i++ {
-		p.Data[offset+i] = 0
+		if s.GetSlotID() == slotID {
+			slotIndex = i
+		}
 	}
 
-	// use this as the main thing later.
-	// batch delete later
-	p.Slots[slotIndex].SetSlot(0, 0, 0, true)
+    // delete slot
+	p.Slots = append(p.Slots[:slotIndex], p.Slots[slotIndex+1:]...)
 
+	// update count
+	p.Header.SetCount(p.Header.GetCount() - 1)
 	return nil
 }
