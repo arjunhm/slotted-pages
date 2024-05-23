@@ -6,4 +6,4 @@ Page Header: Contains metadata such as the number of records, free space offset,
 Slot Directory: An array of pointers, each pointing to the location of a record within the page. Slots can be reused when records are deleted.
 Data Area: The actual storage space for records, which can vary in size. Records are packed together to minimize fragmentation.
 
-![slotted pages overview](img/slotted-pages.png)
+![slotted pages overview](img/slotted-pages.png "Slotted Pages Overview")
