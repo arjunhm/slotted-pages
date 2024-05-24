@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-const SLOT_SIZE = 16 // <SlotID,Offset,KeySize,ValueSize>
+const SLOT_SIZE uint32 = 16 // <SlotID,Offset,KeySize,ValueSize>
 
 type Slot struct {
 	SlotID    uint32
