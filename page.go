@@ -48,7 +48,23 @@ func (p *Page) GetSlot(slotID uint32) *Slot {
 
 // ----- Main functions -----
 
-func (p *Page) Insert(kv KeyValue) error {
+func (p *Page) Read(slotID uint32) *KeyValue {
+	slot := p.GetSlot(slotID)
+	if slot == nil {
+		return nil
+	}
+
+	offset := slot.GetOffset()
+	keyEnd := offset + slot.GetKeySize()
+	valEnd := keyEnd + slot.GetValueSize()
+
+	keyData := string(p.Data[offset:keyEnd])
+	valData := string(p.Data[keyEnd:valEnd])
+
+	return NewKeyValue(keyData, valData)
+}
+
+func (p *Page) Insert(kv *KeyValue) error {
 	// ? what if key already exists ?
 
 	payloadSize := kv.GetSize()
@@ -57,7 +73,7 @@ func (p *Page) Insert(kv KeyValue) error {
 
 	// check if space exists
 	if payloadSize > p.GetAvailableSpace() {
-		return errors.New("Insufficient space")
+		return errors.New("insufficient space")
 	}
 
 	// get offset from where data can be inserted
@@ -78,7 +94,7 @@ func (p *Page) Insert(kv KeyValue) error {
 	return nil
 }
 
-func (p *Page) Update(slotID uint32, kv KeyValue) error {
+func (p *Page) Update(slotID uint32, kv *KeyValue) error {
 
 	slot := p.GetSlot(slotID)
 	if slot == nil {
@@ -116,7 +132,7 @@ func (p *Page) Update(slotID uint32, kv KeyValue) error {
 				return err
 			}
 		} else {
-			return errors.New("Insufficient space")
+			return errors.New("insufficient space")
 		}
 	}
 
