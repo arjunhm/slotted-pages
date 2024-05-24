@@ -1,7 +1,7 @@
 package page
 
 import (
-	//"fmt"
+	"fmt"
 	"testing"
 )
 
@@ -10,6 +10,15 @@ const TEST_PAGE_ID = 0
 func compareInt(t *testing.T, expected, got uint32, name string) {
 	if expected != got {
 		t.Errorf("%s Expected: %d, got: %d", name, expected, got)
+	}
+}
+
+func compareKV(t *testing.T, expKV, gotKV *KeyValue) {
+	if expKV.Key != gotKV.Key {
+		t.Errorf("Expected %s, got %s", expKV.Key, gotKV.Key)
+	}
+	if expKV.Value != gotKV.Value {
+		t.Errorf("Expected %s, got %s", expKV.Value, gotKV.Value)
 	}
 }
 
@@ -39,12 +48,12 @@ func createKV(id int) *KeyValue {
 }
 
 func createPage(t *testing.T, pageID uint32, kvIDLimit int) *Page {
-	var kv KeyValue
+	var kv *KeyValue
 	var size uint32
 	page := NewPage(pageID)
 
 	for i := 1; i <= kvIDLimit; i++ {
-		kv = *createKV(i)
+		kv = createKV(i)
 		size += kv.GetSize()
 		page.Insert(kv)
 
@@ -60,6 +69,7 @@ func createPage(t *testing.T, pageID uint32, kvIDLimit int) *Page {
 }
 
 func TestNewPage(t *testing.T) {
+	fmt.Print("starting tests...\n")
 	pageID := uint32(12)
 	page := NewPage(pageID)
 
@@ -126,4 +136,82 @@ func TestDelete(t *testing.T) {
 	// delete slot 1 (end)
 	DeleteSlot(t, page, pageID, uint32(1), 3)
 
+}
+
+func TestRead(t *testing.T) {
+	var expKV, gotKV *KeyValue
+
+	pageID := uint32(1)
+	page := createPage(t, pageID, 3)
+
+	expKV = createKV(1)
+	gotKV = page.Read(1)
+	if expKV.Key != gotKV.Key {
+		t.Errorf("Expected %s, got %s", expKV.Key, gotKV.Key)
+	}
+	if expKV.Value != gotKV.Value {
+		t.Errorf("Expected %s, got %s", expKV.Value, gotKV.Value)
+	}
+
+	expKV = createKV(2)
+	gotKV = page.Read(2)
+	compareKV(t, expKV, gotKV)
+
+	expKV = createKV(3)
+	gotKV = page.Read(3)
+	compareKV(t, expKV, gotKV)
+
+	expKV = createKV(3)
+	gotKV = page.Read(2)
+	if expKV.Key == gotKV.Key {
+		t.Errorf("Expected %s, got %s", expKV.Key, gotKV.Key)
+	}
+	if expKV.Value == gotKV.Value {
+		t.Errorf("Expected %s, got %s", expKV.Value, gotKV.Value)
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	var slotID uint32
+	var expKV *KeyValue
+
+	pageID := uint32(1)
+	page := createPage(t, pageID, 3)
+
+	// same size
+	slotID = uint32(3)
+	newKV := NewKeyValue("key", "xalue")
+	newKeySize := newKV.GetKeySize()
+	newValueSize := newKV.GetValueSize()
+
+	err := page.Update(slotID, newKV)
+	if err != nil {
+		expKV = page.Read(slotID)
+		compareKV(t, expKV, newKV)
+	}
+
+	// diff size
+	slotID = uint32(2)
+	oldSlot := page.GetSlot(slotID)
+	newOffset := page.Header.GetFreeSpaceEnd() + oldSlot.GetOffset() - newKV.GetKeySize()
+	err = page.Update(slotID, newKV)
+
+	if err != nil {
+		newSlotID := uint32(4)
+		expKV = page.Read(newSlotID)
+		compareKV(t, expKV, newKV)
+
+		slot := page.GetSlot(newSlotID)
+		compareSlot(t, slot, newOffset, newKeySize, newValueSize, newSlotID)
+
+	}
+
+	// insufficient space
+	slotID = uint32(1)
+	value := string(make([]byte, 4096))
+	newKV = NewKeyValue("myKey", value)
+	err = page.Update(slotID, newKV)
+	if err == nil {
+		t.Errorf("insufficient space error should be raised")
+	}
 }
