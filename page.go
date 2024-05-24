@@ -3,7 +3,7 @@ package page
 import "errors"
 
 const (
-	PAGE_SIZE = 4096 // 4KB
+	PAGE_SIZE uint32 = 4096 // 4KB
 )
 
 type Page struct {
@@ -82,7 +82,7 @@ func (p *Page) Update(slotID uint32, kv KeyValue) error {
 
 	slot := p.GetSlot(slotID)
 	if slot == nil {
-		return errors.New("Invalid Slot ID")
+		return errors.New("invalid slotID")
 	}
 
 	oldSize := slot.GetSize()
@@ -104,7 +104,7 @@ func (p *Page) Update(slotID uint32, kv KeyValue) error {
 		slot.SetSlot(offset, keySize, valSize)
 	} else {
 		// if freeSpace enough
-		if newSize < p.GetAvailableSpace(){
+		if newSize < p.GetAvailableSpace() {
 			// delete slot
 			err := p.Delete(slotID)
 			if err != nil {
@@ -128,7 +128,7 @@ func (p *Page) Delete(slotID uint32) error {
 	// get slot
 	slot := p.GetSlot(slotID)
 	if slot == nil {
-		return errors.New("Invalid Slot ID")
+		return errors.New("invalid slotID")
 	}
 	payloadOffset := slot.GetOffset()
 
@@ -141,7 +141,7 @@ func (p *Page) Delete(slotID uint32) error {
 		// move data
 		src := freeSpaceEnd
 		dest := src + payloadSize
-		nBytes := src + payloadOffset
+		nBytes := payloadOffset - src
 		copy(p.Data[dest:dest+nBytes], p.Data[src:src+nBytes])
 	}
 
@@ -151,7 +151,7 @@ func (p *Page) Delete(slotID uint32) error {
 	// update slots with new offset
 	var slotIndex int
 	for i := 0; i < len(p.Slots); i++ {
-		s := p.Slots[i]
+		s := &p.Slots[i]
 		if s.GetOffset() < payloadOffset {
 			s.SetOffset(s.GetOffset() + payloadSize)
 		}
@@ -166,4 +166,3 @@ func (p *Page) Delete(slotID uint32) error {
 	p.Header.SetCount(p.Header.GetCount() - 1)
 	return nil
 }
-
