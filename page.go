@@ -137,7 +137,7 @@ func (p *Page) Delete(slotID uint32) error {
 	freeSpaceEnd := p.Header.GetFreeSpaceEnd()
 
 	// if not last slot
-	if freeSpaceEnd != slot.GetOffset() {
+	if freeSpaceEnd != payloadOffset {
 		// move data
 		src := freeSpaceEnd
 		dest := src + payloadSize
@@ -155,7 +155,6 @@ func (p *Page) Delete(slotID uint32) error {
 		if s.GetOffset() < payloadOffset {
 			s.SetOffset(s.GetOffset() + payloadSize)
 		}
-
 		if s.GetSlotID() == slotID {
 			slotIndex = i
 		}
@@ -163,7 +162,6 @@ func (p *Page) Delete(slotID uint32) error {
 
 	// delete slot
 	p.Slots = append(p.Slots[:slotIndex], p.Slots[slotIndex+1:]...)
-
 	// update count
 	p.Header.SetCount(p.Header.GetCount() - 1)
 	return nil
